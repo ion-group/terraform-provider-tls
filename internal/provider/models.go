@@ -123,3 +123,21 @@ type locallySignedCertResourceModel struct {
 	CAKeyAlgorithm                              types.String `tfsdk:"ca_key_algorithm"`
 	ID                                          types.String `tfsdk:"id"`
 }
+
+// Model for the state of the PFX data source
+type PfxToPemDataSourceModel struct {
+	Certificate_pfx types.String `tfsdk:"certificate_pfx"`
+	Password_pfx    types.String `tfsdk:"password_pfx"`
+	Certificate_pem types.String `tfsdk:"certificate_pem"`
+	Private_key_pem types.String `tfsdk:"private_key_pem"`
+}
+
+// Model for the state of the PEM data source
+type PemToPfxDataSourceModel struct {
+	CertPem        types.String `tfsdk:"certificate_pem"` // Certificate or certificate chain
+	PrivateKeyPem  types.String `tfsdk:"private_key_pem"` // Private Key
+	PrivateKeyPass types.String `tfsdk:"password_pem"`    // Private Key password (optional)
+	PfxPassword    types.String `tfsdk:"password_pfx"`    // Keystore password
+	Encoding       types.String `tfsdk:"encoding_pfx"`    // Encoding type (optional)
+	CertPfx        types.String `tfsdk:"certificate_pfx"` // Generated PFX data (computed)
+}
