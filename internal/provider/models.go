@@ -126,10 +126,10 @@ type locallySignedCertResourceModel struct {
 
 // Model for the state of the PFX data source
 type PfxToPemDataSourceModel struct {
-	Certificate_pfx types.String `tfsdk:"certificate_pfx"`
-	Password_pfx    types.String `tfsdk:"password_pfx"`
-	Certificate_pem types.String `tfsdk:"certificate_pem"`
-	Private_key_pem types.String `tfsdk:"private_key_pem"`
+	ContentBase64  types.String `tfsdk:"content_base64"`
+	Password       types.String `tfsdk:"password"`
+	CertificatePem types.String `tfsdk:"certificate_pem"`
+	PrivateKeyPem  types.String `tfsdk:"private_key_pem"`
 }
 
 // Model for the state of the PEM data source

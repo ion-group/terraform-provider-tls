@@ -4,15 +4,14 @@
 package provider
 
 import (
-	"bytes"
 	"context"
-	"encoding/pem"
-	"io/ioutil"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"golang.org/x/crypto/pkcs12"
+
+	// "golang.org/x/crypto/pkcs12"
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 // Define the PFX data source struct
@@ -41,12 +40,11 @@ func (d *pfxDataSource) Configure(_ context.Context, req datasource.ConfigureReq
 func (d *pfxDataSource) Schema(_ context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"certificate_pfx": schema.StringAttribute{
-				Required: true,
-				// MarkdownDescription: "Contents of PFX certificate in base64 encoded string",
-				MarkdownDescription: "PFX certificate in binary format in a file",
+			"content_base64": schema.StringAttribute{
+				Required:            true,
+				MarkdownDescription: "Contents of PFX certificate in base64 encoded string",
 			},
-			"password_pfx": schema.StringAttribute{
+			"password": schema.StringAttribute{
 				Required:            true,
 				Sensitive:           true,
 				MarkdownDescription: "Password for the PFX certificate",
@@ -75,16 +73,13 @@ func (d *pfxDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		return
 	}
 
-	//Read the PFX file and extract data
-	fileName := state.Certificate_pfx.ValueString()
-	pfxData, err := ioutil.ReadFile(fileName)
+	pfxData, err := base64Decode([]byte(state.ContentBase64.ValueString()))
 	if err != nil {
-		resp.Diagnostics.AddError("Failed to read PFX file", err.Error())
+		resp.Diagnostics.AddError("Failed to base64 decode", err.Error())
 		return
 	}
 
-	// pfxData := []byte(state.Certificate_pfx.ValueString())
-	pfxPassword := state.Password_pfx.ValueString()
+	pfxPassword := state.Password.ValueString()
 	pemBlocks, err := pkcs12.ToPEM(pfxData, pfxPassword)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to decode PFX data", err.Error())
@@ -109,7 +104,7 @@ func (d *pfxDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 			}
 		case "PRIVATE KEY":
 			if privateKeyPEM == "" {
-				privateKeyPEM, err = pemToString(pemBlock)
+				privateKeyPEM, err = formatPrivateKeyToPKCS1(pemBlock)
 				if err != nil {
 					resp.Diagnostics.AddError("Failed to convert private key to PEM", err.Error())
 					return
@@ -119,24 +114,9 @@ func (d *pfxDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 	}
 
 	// Set the certificate and private key in the state
-	state.Certificate_pem = types.StringValue(certificatePEM)
-	state.Private_key_pem = types.StringValue(privateKeyPEM)
+	state.CertificatePem = types.StringValue(certificatePEM)
+	state.PrivateKeyPem = types.StringValue(privateKeyPEM)
 
 	// Set the final state
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
-}
-
-// Helper function to convert PEM block to string
-func pemToString(pemBlock *pem.Block) (string, error) {
-
-	// Remove any headers from the PEM block
-	pemBlock.Headers = nil
-
-	var buffer bytes.Buffer
-	err := pem.Encode(&buffer, pemBlock)
-	if err != nil {
-		return "", err
-	}
-
-	return buffer.String(), nil
 }
