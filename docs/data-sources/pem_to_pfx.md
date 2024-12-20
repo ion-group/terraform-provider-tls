@@ -4,26 +4,27 @@ page_title: "tls_pem_to_pfx Data Source - terraform-provider-tls"
 subcategory: ""
 description: |-
   Converts a PEM certificate and private key into a PFX file. Encrypted PEM can be used if password_pem is given and the resulting PFX file can also be encrypted if password_pfx is given
+  Note:
+  Using modern encoding type which support advanced algorithms like AES256 encryption for securimng private keys to encrypt PFX certicate
+  Using rand.Reader to derive encryption keys from passwords but as per GO community, password encrypted pfx are not completely secure and can be broken
 ---
 
 # tls_pem_to_pfx (Data Source)
 
 Converts a PEM certificate and private key into a PFX file. Encrypted PEM can be used if password_pem is given and the resulting PFX file can also be encrypted if password_pfx is given
+Note:
+Using modern encoding type which support advanced algorithms like AES256 encryption for securimng private keys to encrypt PFX certicate
+Using rand.Reader to derive encryption keys from passwords but as per GO community, password encrypted pfx are not completely secure and can be broken
 
 ## Example Usage
 
 ```terraform
-# Note
-# Using modern encoding type which support advanced algorithms like AES256 encryption for securimng private keys to encrypt PFX certicate
-# Using rand.Reader to derive encryption keys from passwords to ensure utmost security
-
 locals {
   certificate_path = "${path.module}/../../../internal/provider/fixtures/certificate_rsa_legacy.pem"
   private_key_path = "${path.module}/../../../internal/provider/fixtures/private_key_rsa_legacy.pem"
 }
 
 data "tls_pem_to_pfx" "this" {
-
   password_pfx    = ""
   certificate_pem = file(local.certificate_path)
   private_key_pem = file(local.private_key_path)

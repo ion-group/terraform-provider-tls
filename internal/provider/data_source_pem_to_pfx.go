@@ -64,7 +64,11 @@ func (d *pemDataSource) Schema(_ context.Context, req datasource.SchemaRequest, 
 				Description: "Generated PFX data base64 encoded",
 			},
 		},
-		MarkdownDescription: "Converts a PEM certificate and private key into a PFX file. Encrypted PEM can be used if password_pem is given and the resulting PFX file can also be encrypted if password_pfx is given",
+		MarkdownDescription: `
+Converts a PEM certificate and private key into a PFX file. Encrypted PEM can be used if password_pem is given and the resulting PFX file can also be encrypted if password_pfx is given
+Note:
+Using modern encoding type which support advanced algorithms like AES256 encryption for securimng private keys to encrypt PFX certicate
+Using rand.Reader to derive encryption keys from passwords but as per GO community, password encrypted pfx are not completely secure and can be broken`,
 	}
 }
 

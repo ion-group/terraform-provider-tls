@@ -66,7 +66,19 @@ func (d *pfxDataSource) Schema(_ context.Context, req datasource.SchemaRequest, 
 				MarkdownDescription: "List of private keys in PEM format.",
 			},
 		},
-		MarkdownDescription: "Convert pfx certificate to pem format.",
+		MarkdownDescription: `
+Convert PFX certificate to PEM format.
+
+Note:
+- PEM files are generated in PKCS#8 format, which is a generalized format for private keys that supports all algorithm types.
+- Supported algorithm types include:
+	- RSA
+	- DSA
+	- ECDSA
+	- Elliptic Curve keys
+	- EdDSA
+- PKCS#8 format includes a field to specify the algorithm used for encryption, making it algorithm-agnostic.
+- PKCS#1 is a legacy key format, specifically designed for a limited set of algorithm types in the context of modern cryptographic practices.`,
 	}
 }
 

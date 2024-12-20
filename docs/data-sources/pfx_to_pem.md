@@ -3,27 +3,30 @@
 page_title: "tls_pfx_to_pem Data Source - terraform-provider-tls"
 subcategory: ""
 description: |-
-  Convert pfx certificate to pem format.
+  Convert PFX certificate to PEM format.
+  Note:
+  PEM files are generated in PKCS#8 format, which is a generalized format for private keys that supports all algorithm types.Supported algorithm types include:
+  RSADSAECDSAElliptic Curve keysEdDSAPKCS#8 format includes a field to specify the algorithm used for encryption, making it algorithm-agnostic.PKCS#1 is a legacy key format, specifically designed for a limited set of algorithm types in the context of modern cryptographic practices.
 ---
 
 # tls_pfx_to_pem (Data Source)
 
-Convert pfx certificate to pem format.
+Convert PFX certificate to PEM format.
+
+Note:
+- PEM files are generated in PKCS#8 format, which is a generalized format for private keys that supports all algorithm types.
+- Supported algorithm types include:
+	- RSA
+	- DSA
+	- ECDSA
+	- Elliptic Curve keys
+	- EdDSA
+- PKCS#8 format includes a field to specify the algorithm used for encryption, making it algorithm-agnostic.
+- PKCS#1 is a legacy key format, specifically designed for a limited set of algorithm types in the context of modern cryptographic practices.
 
 ## Example Usage
 
 ```terraform
-# Note
-# Pem files are generated in PKCS#8 format as it's generalized format for private keys that supports all algorithm types
-# It supports multiple algorithm types as below
-# RSA
-# DSA
-# ECDSA
-# Elliptic Curve keys
-# EdDSA
-# PKCS#8 format includes a field to specify the algorithm used for encryption which makes it algorithm agnostic
-# PKCS#1 is a legacy key format in the context of modern cryptographic practices specifically designed for limited set of algorithm types
-
 locals {
   pfx_file_path = "../../../internal/provider/fixtures/certificate_rsa_legacy.pfx"
 }
