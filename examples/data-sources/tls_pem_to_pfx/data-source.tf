@@ -1,26 +1,20 @@
-terraform {
+# Note
+# Using modern encoding type which support advanced algorithms like AES256 encryption for securimng private keys to encrypt PFX certicate
+# Using rand.Reader to derive encryption keys from passwords to ensure utmost security
 
-  # https://github.com/hashicorp/terraform/releases
-  required_version = ">= 1.1.7"
-
-  required_providers {
-    tls = {
-      source  = "hashicorp/tls"
-      version = ">= 4.0.0"
-    }
-  }
+locals {
+  certificate_path = "${path.module}/../../../internal/provider/fixtures/certificate_rsa_legacy.pem"
+  private_key_path = "${path.module}/../../../internal/provider/fixtures/private_key_rsa_legacy.pem"
 }
 
-
 data "tls_pem_to_pfx" "this" {
+
   password_pfx    = ""
-  certificate_pem = file("../../../internal/provider/fixtures/certificate_pfx.pem")
-  private_key_pem = file("../../../internal/provider/fixtures/private_key_pfx.pem")
-  # certificate_pem = file("certificate.pfx.pem")
-  # private_key_pem = file("private_key.pem")
+  certificate_pem = file(local.certificate_path)
+  private_key_pem = file(local.private_key_path)
 }
 
 resource "local_sensitive_file" "example" {
-  filename = "${path.module}/output.pfx"
-  content_base64  = data.tls_pem_to_pfx.this.certificate_pfx
+  filename       = "${path.module}/output.pfx"
+  content_base64 = data.tls_pem_to_pfx.this.certificate_pfx
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"software.sslmate.com/src/go-pkcs12"
 )
 
 // Define the PFX data source struct
@@ -43,37 +42,29 @@ func (d *pemDataSource) Schema(_ context.Context, req datasource.SchemaRequest, 
 			"certificate_pem": schema.StringAttribute{
 				Required:    true,
 				Sensitive:   true,
-				Description: "Certificate or certificate chain",
+				Description: "Certificate or certificate chain in pem format",
 			},
 			"private_key_pem": schema.StringAttribute{
 				Required:    true,
 				Sensitive:   true,
-				Description: "Private Key",
+				Description: "Private Key in pem format",
 			},
 			"password_pem": schema.StringAttribute{
-				Optional:  true,
-				Sensitive: true,
-				Computed:  true,
-				// Default:     stringdefault.StaticString(""),
-				Description: "Private Key password",
+				Optional:    true,
+				Sensitive:   true,
+				Description: "password for private key in pem format",
 			},
 			"password_pfx": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Sensitive:   true,
-				Description: "Keystore password",
-			},
-			"encoding_pfx": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
-				// Default:     stringdefault.StaticString("modern2023"),
-				Description: "Set encoding for pfx certificate ",
+				Description: "password for pfx certificate",
 			},
 			"certificate_pfx": schema.StringAttribute{
 				Computed:    true,
 				Description: "Generated PFX data base64 encoded",
 			},
 		},
-		MarkdownDescription: "Converts a PEM certificate and private key into a PFX file using the provided password.",
+		MarkdownDescription: "Converts a PEM certificate and private key into a PFX file. Encrypted PEM can be used if password_pem is given and the resulting PFX file can also be encrypted if password_pfx is given",
 	}
 }
 
@@ -92,46 +83,26 @@ func (ds *pemDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		"pemToPfxConfig": fmt.Sprintf("%+v", newState),
 	})
 
-	encoder := pkcs12.Modern2023
 	CertPem := newState.CertPem.ValueString()
 	tflog.Debug(ctx, "Certificate PEM", map[string]interface{}{
 		"cert_pem": []byte(CertPem),
 	})
-
-	// Decode certificate and CA certs
-	certificate, caListAndIntermediate, err := decodeCerts([]byte(CertPem))
-	if err != nil {
-		res.Diagnostics.AddError("Failed to decode certificate PEM", err.Error())
-		return
-	}
 
 	PrivateKeyPem := newState.PrivateKeyPem.ValueString()
 	tflog.Debug(ctx, "Private Key PEM", map[string]interface{}{
 		"private_key_pem": []byte(PrivateKeyPem),
 	})
 
-	//Decode private key
-	privateKeys, err := decodePrivateKeysFromPem([]byte(PrivateKeyPem), []byte(newState.PrivateKeyPass.ValueString()))
-	if err != nil || len(privateKeys) == 0 {
-		res.Diagnostics.AddError("Failed to decode private key PEM", "No valid private key found")
-		return
-	}
+	// Combine both PEM strings
+	pemData := []byte(CertPem + "\n" + PrivateKeyPem)
 
-	if len(privateKeys) != 1 {
-		res.Diagnostics.AddError("private_key_pem must contain exactly one private key", "Check the Input")
-		return
-	}
+	pemPassword := newState.PrivateKeyPass.ValueString()
+	pfxPassword := newState.PfxPassword.ValueString()
 
-	// Generate PFX data
-	// pfxData, err := encoder.Encode(privateKeys[0].(*rsa.PrivateKey), certificate, caListAndIntermediate, newState.PfxPassword.ValueString())
-	pfxData, err := encoder.Encode(privateKeys[0], certificate, caListAndIntermediate, newState.PfxPassword.ValueString())
-	if err != nil {
-		res.Diagnostics.AddError("Failed to create PFX data", err.Error())
-		return
-	}
+	pkcs12Data, _ := ConvertPemToPkcs12([]byte(pemData), pemPassword, pfxPassword)
 
 	// Set PFX data and ID in the new state
-	newState.CertPfx = types.StringValue(base64.StdEncoding.EncodeToString(pfxData))
+	newState.CertPfx = types.StringValue(base64.StdEncoding.EncodeToString(pkcs12Data))
 
 	// Set the final state
 	tflog.Debug(ctx, "Storing PEM to PFX info into the state")

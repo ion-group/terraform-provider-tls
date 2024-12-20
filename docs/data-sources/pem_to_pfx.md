@@ -3,20 +3,35 @@
 page_title: "tls_pem_to_pfx Data Source - terraform-provider-tls"
 subcategory: ""
 description: |-
-  Converts a PEM certificate and private key into a PFX file using the provided password.
+  Converts a PEM certificate and private key into a PFX file. Encrypted PEM can be used if password_pem is given and the resulting PFX file can also be encrypted if password_pfx is given
 ---
 
 # tls_pem_to_pfx (Data Source)
 
-Converts a PEM certificate and private key into a PFX file using the provided password.
+Converts a PEM certificate and private key into a PFX file. Encrypted PEM can be used if password_pem is given and the resulting PFX file can also be encrypted if password_pfx is given
 
 ## Example Usage
 
 ```terraform
+# Note
+# Using modern encoding type which support advanced algorithms like AES256 encryption for securimng private keys to encrypt PFX certicate
+# Using rand.Reader to derive encryption keys from passwords to ensure utmost security
+
+locals {
+  certificate_path = "${path.module}/../../../internal/provider/fixtures/certificate_rsa_legacy.pem"
+  private_key_path = "${path.module}/../../../internal/provider/fixtures/private_key_rsa_legacy.pem"
+}
+
 data "tls_pem_to_pfx" "this" {
+
   password_pfx    = ""
-  certificate_pem = file("../../certificate.pem")
-  private_key_pem = file("../../private_key.pem")
+  certificate_pem = file(local.certificate_path)
+  private_key_pem = file(local.private_key_path)
+}
+
+resource "local_sensitive_file" "example" {
+  filename       = "${path.module}/output.pfx"
+  content_base64 = data.tls_pem_to_pfx.this.certificate_pfx
 }
 ```
 
@@ -25,14 +40,13 @@ data "tls_pem_to_pfx" "this" {
 
 ### Required
 
-- `certificate_pem` (String, Sensitive) Certificate or certificate chain
-- `password_pfx` (String, Sensitive) Keystore password
-- `private_key_pem` (String, Sensitive) Private Key
+- `certificate_pem` (String, Sensitive) Certificate or certificate chain in pem format
+- `private_key_pem` (String, Sensitive) Private Key in pem format
 
 ### Optional
 
-- `encoding_pfx` (String) Set encoding for pfx certificate
-- `password_pem` (String, Sensitive) Private Key password
+- `password_pem` (String, Sensitive) password for private key in pem format
+- `password_pfx` (String, Sensitive) password for pfx certificate
 
 ### Read-Only
 

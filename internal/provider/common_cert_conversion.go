@@ -9,9 +9,11 @@ import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/asn1"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -75,6 +77,88 @@ func MarshalPrivateKey(key any, legacy bool) ([]byte, error) {
 		default:
 			// Use PKCS #8 for all key types
 			return x509.MarshalPKCS8PrivateKey(key)
+		}
+	}
+}
+
+func MarshalPrivateKeyToPEM(key any, legacy bool) (*pem.Block, error) {
+	var keyBytes []byte
+	var err error
+
+	if legacy {
+		switch k := key.(type) {
+		case *ecdsa.PrivateKey:
+			keyBytes, err = x509.MarshalECPrivateKey(k)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal ECDSA private key: %v", err)
+			}
+			return &pem.Block{
+				Type:  "EC PRIVATE KEY",
+				Bytes: keyBytes,
+			}, nil
+
+		case *rsa.PrivateKey:
+			keyBytes = x509.MarshalPKCS1PrivateKey(k)
+			return &pem.Block{
+				Type:  "RSA PRIVATE KEY",
+				Bytes: keyBytes,
+			}, nil
+
+		case *ecdh.PrivateKey:
+			keyBytes, err = x509.MarshalPKCS8PrivateKey(k)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal ECDH private key: %v", err)
+			}
+			return &pem.Block{
+				Type:  "PRIVATE KEY",
+				Bytes: keyBytes,
+			}, nil
+
+		case ed25519.PrivateKey:
+			keyBytes, err = x509.MarshalPKCS8PrivateKey(k)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal Ed25519 private key: %v", err)
+			}
+			return &pem.Block{
+				Type:  "PRIVATE KEY",
+				Bytes: keyBytes,
+			}, nil
+
+		case *dsa.PrivateKey:
+			keyBytes, err = MarshalDSAPrivateKey(k)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal DSA private key: %v", err)
+			}
+			return &pem.Block{
+				Type:  "DSA PRIVATE KEY",
+				Bytes: keyBytes,
+			}, nil
+
+		default:
+			return nil, fmt.Errorf("unsupported private key type: %T", k)
+		}
+	} else {
+		switch k := key.(type) {
+		case *dsa.PrivateKey:
+			keyBytes, err = MarshalDSAPrivateKey(k)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal DSA private key: %v", err)
+			}
+			return &pem.Block{
+				Type:  "DSA PRIVATE KEY",
+				Bytes: keyBytes,
+			}, nil
+
+		default:
+			// Use PKCS #8 for all key types
+			keyBytes, err = x509.MarshalPKCS8PrivateKey(key)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal private key to PKCS8: %v", err)
+			}
+			return &pem.Block{
+				Type:  "PRIVATE KEY",
+				Bytes: keyBytes,
+			}, nil
 		}
 	}
 }
@@ -344,7 +428,8 @@ func MarshalPem(privateKeys []any, publicKeys []any, certificates []*x509.Certif
 				}
 
 				if len(password) > 0 {
-					randomReader := NewPseudoRandomReader([]byte(password))
+
+					randomReader := rand.Reader
 					pemBlock, err = x509.EncryptPEMBlock(randomReader, BlockPrivateKey, keyBytes, []byte(password), x509.PEMCipherAES256)
 				} else {
 					pemBlock = &pem.Block{
@@ -375,7 +460,8 @@ func MarshalPem(privateKeys []any, publicKeys []any, certificates []*x509.Certif
 				}
 
 				if len(password) > 0 {
-					randomReader := NewPseudoRandomReader([]byte(password))
+
+					randomReader := rand.Reader
 					pemBlock, err = x509.EncryptPEMBlock(randomReader, BlockPrivateKey, keyBytes, []byte(password), x509.PEMCipherAES256)
 				} else {
 					pemBlock = &pem.Block{
@@ -395,7 +481,8 @@ func MarshalPem(privateKeys []any, publicKeys []any, certificates []*x509.Certif
 			}
 
 			if len(password) > 0 {
-				randomReader := NewPseudoRandomReader([]byte(password))
+
+				randomReader := rand.Reader
 				pemBlock, err = x509.EncryptPEMBlock(randomReader, BlockPrivateKey, keyBytes, []byte(password), x509.PEMCipherAES256)
 			} else {
 				pemBlock = &pem.Block{
@@ -415,7 +502,8 @@ func MarshalPem(privateKeys []any, publicKeys []any, certificates []*x509.Certif
 			}
 
 			if len(password) > 0 {
-				randomReader := NewPseudoRandomReader([]byte(password))
+
+				randomReader := rand.Reader
 				pemBlock, err = x509.EncryptPEMBlock(randomReader, BlockPrivateKey, keyBytes, []byte(password), x509.PEMCipherAES256)
 			} else {
 				pemBlock = &pem.Block{
@@ -435,7 +523,8 @@ func MarshalPem(privateKeys []any, publicKeys []any, certificates []*x509.Certif
 				}
 
 				if len(password) > 0 {
-					randomReader := NewPseudoRandomReader([]byte(password))
+
+					randomReader := rand.Reader
 					pemBlock, err = x509.EncryptPEMBlock(randomReader, BlockPrivateKey, keyBytes, []byte(password), x509.PEMCipherAES256)
 				} else {
 					pemBlock = &pem.Block{
@@ -450,7 +539,8 @@ func MarshalPem(privateKeys []any, publicKeys []any, certificates []*x509.Certif
 				}
 
 				if len(password) > 0 {
-					randomReader := NewPseudoRandomReader([]byte(password))
+
+					randomReader := rand.Reader
 					pemBlock, err = x509.EncryptPEMBlock(randomReader, BlockPrivateKey, keyBytes, []byte(password), x509.PEMCipherAES256)
 				} else {
 					pemBlock = &pem.Block{
@@ -579,7 +669,8 @@ func MarshalPem(privateKeys []any, publicKeys []any, certificates []*x509.Certif
 		}
 
 		if encryptCertificate && len(password) > 0 {
-			randomReader := NewPseudoRandomReader([]byte(password))
+
+			randomReader := rand.Reader
 			pemBlock, err = x509.EncryptPEMBlock(randomReader, BlockCertificate, certificate.Raw, []byte(password), x509.PEMCipherAES256)
 		} else {
 			pemBlock = &pem.Block{
@@ -614,10 +705,10 @@ func MarshalPem(privateKeys []any, publicKeys []any, certificates []*x509.Certif
 	return buffer.Bytes(), nil
 }
 
-func ConvertPemToPkcs12(pemData []byte, password string) (pkcs12Data []byte, err error) {
+func ConvertPemToPkcs12(pemData []byte, pemPassword string, pfxPassword string) (pkcs12Data []byte, err error) {
 	legacy := false
 
-	privateKeys, _, certificates, _, err := ParsePem(pemData, password, legacy)
+	privateKeys, _, certificates, _, err := ParsePem(pemData, pemPassword, legacy)
 	if err != nil {
 		return nil, err
 	}
@@ -641,7 +732,7 @@ func ConvertPemToPkcs12(pemData []byte, password string) (pkcs12Data []byte, err
 		caCerts = certificates[:1]
 	}
 
-	pkcs12Data, err = MarshalPkcs12(privateKey, certificate, caCerts, password, legacy)
+	pkcs12Data, err = MarshalPkcs12(privateKey, certificate, caCerts, pfxPassword, legacy)
 	if err != nil {
 		return nil, err
 	}
@@ -649,7 +740,7 @@ func ConvertPemToPkcs12(pemData []byte, password string) (pkcs12Data []byte, err
 	return pkcs12Data, nil
 }
 
-func ParsePkcs12(pkcs12Data []byte, password string) (privateKey any, certificates []*x509.Certificate, err error) {
+func ParsePkcs12(pkcs12Data []byte, password string) (privateKey any, certificates *x509.Certificate, caCerts []*x509.Certificate, err error) {
 	return pkcs12.DecodeChain(pkcs12Data, password)
 }
 
@@ -677,10 +768,10 @@ func MarshalPkcs12(privateKey any, certificate *x509.Certificate, caCerts []*x50
 	return pkcs12Data, nil
 }
 
-func ConvertPkcs12ToPem(pkcs12Data []byte, password string) (pemData []byte, err error) {
+func ConvertPkcs12ToPem(pkcs12Data []byte, pkcs12Password string, pemPassword string) (pemData []byte, err error) {
 	legacy := false
 
-	privateKey, certificates, err := ParsePkcs12(pkcs12Data, password)
+	privateKey, certificates, _, err := ParsePkcs12(pkcs12Data, pkcs12Password)
 	if err != nil {
 		return nil, err
 	}
@@ -689,11 +780,14 @@ func ConvertPkcs12ToPem(pkcs12Data []byte, password string) (pemData []byte, err
 		return nil, errors.New("no private key found in the pkcs12")
 	}
 
-	if len(certificates) < 1 {
+	// Convert certificates to []*x509.Certificate
+	certSlice := []*x509.Certificate{certificates}
+
+	if len(certSlice) < 1 {
 		return nil, errors.New("no certificate found in the pkcs12")
 	}
 
-	pemData, err = MarshalPem([]any{privateKey}, []any{}, certificates, []*x509.CertificateRequest{}, password, false, legacy)
+	pemData, err = MarshalPem([]any{privateKey}, []any{}, certSlice, []*x509.CertificateRequest{}, pemPassword, false, legacy)
 	if err != nil {
 		return nil, err
 	}
@@ -763,4 +857,14 @@ func ParseDSAPrivateKey(der []byte) (*dsa.PrivateKey, error) {
 		},
 		X: k.Priv,
 	}, nil
+}
+
+func base64Decode(body []byte) ([]byte, error) {
+	//Base64 Decode
+	b64 := make([]byte, base64.StdEncoding.DecodedLen(len(body)))
+	n, err := base64.StdEncoding.Decode(b64, body)
+	if err != nil {
+		return nil, err
+	}
+	return b64[:n], nil
 }

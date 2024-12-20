@@ -126,18 +126,18 @@ type locallySignedCertResourceModel struct {
 
 // Model for the state of the PFX data source
 type PfxToPemDataSourceModel struct {
-	ContentBase64  types.String `tfsdk:"content_base64"`
-	Password       types.String `tfsdk:"password"`
-	CertificatePem types.String `tfsdk:"certificate_pem"`
-	PrivateKeyPem  types.String `tfsdk:"private_key_pem"`
+	ContentBase64   types.String `tfsdk:"content_base64"`
+	PrivateKeyPass  types.String `tfsdk:"password_pem"` // Private Key password
+	PfxPassword     types.String `tfsdk:"password_pfx"` // Keystore password
+	CertificatesPem types.List   `tfsdk:"certificates_pem"`
+	PrivateKeysPem  types.List   `tfsdk:"private_keys_pem"`
 }
 
 // Model for the state of the PEM data source
 type PemToPfxDataSourceModel struct {
 	CertPem        types.String `tfsdk:"certificate_pem"` // Certificate or certificate chain
 	PrivateKeyPem  types.String `tfsdk:"private_key_pem"` // Private Key
-	PrivateKeyPass types.String `tfsdk:"password_pem"`    // Private Key password (optional)
+	PrivateKeyPass types.String `tfsdk:"password_pem"`    // Private Key password
 	PfxPassword    types.String `tfsdk:"password_pfx"`    // Keystore password
-	Encoding       types.String `tfsdk:"encoding_pfx"`    // Encoding type (optional)
-	CertPfx        types.String `tfsdk:"certificate_pfx"` // Generated PFX data (computed)
+	CertPfx        types.String `tfsdk:"certificate_pfx"` // Generated PFX data
 }

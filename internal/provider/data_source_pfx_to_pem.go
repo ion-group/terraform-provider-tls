@@ -4,14 +4,14 @@
 package provider
 
 import (
+	"bytes"
 	"context"
+	"encoding/pem"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-
-	// "golang.org/x/crypto/pkcs12"
-	"software.sslmate.com/src/go-pkcs12"
 )
 
 // Define the PFX data source struct
@@ -44,19 +44,26 @@ func (d *pfxDataSource) Schema(_ context.Context, req datasource.SchemaRequest, 
 				Required:            true,
 				MarkdownDescription: "Contents of PFX certificate in base64 encoded string",
 			},
-			"password": schema.StringAttribute{
-				Required:            true,
-				Sensitive:           true,
-				MarkdownDescription: "Password for the PFX certificate",
+			"password_pfx": schema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "password for pfx certificate",
 			},
-			"certificate_pem": schema.StringAttribute{
-				Computed:            true,
-				MarkdownDescription: "The certificate in pem format",
+			"password_pem": schema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "password for private key in pem format",
 			},
-			"private_key_pem": schema.StringAttribute{
+			"certificates_pem": schema.ListAttribute{
+				ElementType:         types.StringType,
+				Computed:            true,
+				MarkdownDescription: "List of certificates in PEM format.",
+			},
+			"private_keys_pem": schema.ListAttribute{
+				ElementType:         types.StringType,
 				Computed:            true,
 				Sensitive:           true,
-				MarkdownDescription: "The private key in pem format",
+				MarkdownDescription: "List of private keys in PEM format.",
 			},
 		},
 		MarkdownDescription: "Convert pfx certificate to pem format.",
@@ -79,44 +86,58 @@ func (d *pfxDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		return
 	}
 
-	pfxPassword := state.Password.ValueString()
-	pemBlocks, err := pkcs12.ToPEM(pfxData, pfxPassword)
+	pemPassword := state.PrivateKeyPass.ValueString()
+	pfxPassword := state.PfxPassword.ValueString()
+
+	pemData, err := ConvertPkcs12ToPem([]byte(pfxData), pfxPassword, pemPassword)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to decode PFX data", err.Error())
 		return
 	}
+	fmt.Println("Successfully converted PFX to PEM data.")
 
-	// Process the PEM blocks for certificate and private key
+	//Process the PEM blocks for certificates and private keys
 	var (
-		certificatePEM string
-		privateKeyPEM  string
+		certificatesPEM []string
+		privateKeysPEM  []string
 	)
 
-	for _, pemBlock := range pemBlocks {
-		switch pemBlock.Type {
-		case "CERTIFICATE":
-			if certificatePEM == "" {
-				certificatePEM, err = pemToString(pemBlock)
-				if err != nil {
-					resp.Diagnostics.AddError("Failed to convert certificate to PEM", err.Error())
-					return
-				}
-			}
-		case "PRIVATE KEY":
-			if privateKeyPEM == "" {
-				privateKeyPEM, err = formatPrivateKeyToPKCS1(pemBlock)
-				if err != nil {
-					resp.Diagnostics.AddError("Failed to convert private key to PEM", err.Error())
-					return
-				}
-			}
+	for {
+		block, rest := pem.Decode(pemData)
+		if block == nil {
+			break // No more PEM blocks
 		}
+
+		// Separate based on block type
+		if block.Type == "CERTIFICATE" {
+			certificatesPEM = append(certificatesPEM, string(pem.EncodeToMemory(block)))
+		} else if block.Type == "PRIVATE KEY" {
+			privateKeysPEM = append(privateKeysPEM, string(pem.EncodeToMemory(block)))
+		}
+
+		// Update the buffer to process remaining data
+		pemData = bytes.NewBuffer(rest).Bytes()
 	}
 
-	// Set the certificate and private key in the state
-	state.CertificatePem = types.StringValue(certificatePEM)
-	state.PrivateKeyPem = types.StringValue(privateKeyPEM)
+	// Convert slices to types.List
+	certificatesList, diagCertificates := types.ListValueFrom(ctx, types.StringType, certificatesPEM)
+	privateKeysList, diagPrivateKeys := types.ListValueFrom(ctx, types.StringType, privateKeysPEM)
+
+	// Check for diagnostics (errors) during the conversion
+	if diagCertificates.HasError() || diagPrivateKeys.HasError() {
+		resp.Diagnostics.Append(diagCertificates...)
+		resp.Diagnostics.Append(diagPrivateKeys...)
+		return
+	}
+
+	// Assign the converted lists to the model
+	state.CertificatesPem = certificatesList
+	state.PrivateKeysPem = privateKeysList
 
 	// Set the final state
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 }

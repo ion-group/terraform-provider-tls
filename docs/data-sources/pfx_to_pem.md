@@ -13,9 +13,34 @@ Convert pfx certificate to pem format.
 ## Example Usage
 
 ```terraform
+# Note
+# Pem files are generated in PKCS#8 format as it's generalized format for private keys that supports all algorithm types
+# It supports multiple algorithm types as below
+# RSA
+# DSA
+# ECDSA
+# Elliptic Curve keys
+# EdDSA
+# PKCS#8 format includes a field to specify the algorithm used for encryption which makes it algorithm agnostic
+# PKCS#1 is a legacy key format in the context of modern cryptographic practices specifically designed for limited set of algorithm types
+
+locals {
+  pfx_file_path = "../../../internal/provider/fixtures/certificate_rsa_legacy.pfx"
+}
+
 data "tls_pfx_to_pem" "this" {
-  certificate_pfx = file("../../certificate.pfx")
-  password_pfx    = ""
+  content_base64 = filebase64(local.pfx_file_path)
+  password       = ""
+}
+
+resource "local_sensitive_file" "certificate_pem" {
+  filename = "${path.module}/certificate.pem"
+  content  = data.tls_pfx_to_pem.this.certificate_pem
+}
+
+resource "local_sensitive_file" "private_key" {
+  filename = "${path.module}/private_key.pem"
+  content  = data.tls_pfx_to_pem.this.private_key_pem
 }
 ```
 
@@ -24,11 +49,14 @@ data "tls_pfx_to_pem" "this" {
 
 ### Required
 
-- `certificate_pfx` (String) Contents of PFX certificate in base64 encoded string
-- `password_pfx` (String, Sensitive) Password for the PFX certificate
+- `content_base64` (String) Contents of PFX certificate in base64 encoded string
+
+### Optional
+
+- `password_pem` (String, Sensitive) password for private key in pem format
+- `password_pfx` (String, Sensitive) password for pfx certificate
 
 ### Read-Only
 
-- `certificate_pem` (String) The certificate in pem format
-- `password_pem` (String, Sensitive) Password for private key in pem format
-- `private_key_pem` (String, Sensitive) The private key in pem format
+- `certificates_pem` (List of String) List of certificates in PEM format.
+- `private_keys_pem` (List of String, Sensitive) List of private keys in PEM format.
