@@ -23,6 +23,7 @@ linters:
     - unparam
     - unused
     - usetesting
+    - forcetypeassert
 
 run:
   # Prevent false positive timeouts in CI
